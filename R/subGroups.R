@@ -5,12 +5,22 @@
 #' @export
 
 
-subGroups <- function(cellData,groups,names){
+subGroups <- function(cellData,groups,names,remove=FALSE){
   
-  cellData<-cellData[,row.names(pData(cellData))[pData(cellData)[,groups]%in%names]]
+  if (remove==FALSE){
+    cellData<-cellData[,row.names(pData(cellData))[pData(cellData)[,groups]%in%names]]
+    
+    for (i in 1:length(cellData@colorData)){
+      cellData@colorData[[i]] <- cellData@colorData[[i]][as.vector(unique(pData(cellData)[,names(cellData@colorData[i])]))]
+    }
+  }
   
-  for (i in 1:length(cellData@colorData)){
-    cellData@colorData[[i]] <- cellData@colorData[[i]][as.vector(unique(pData(cellData)[,names(cellData@colorData[i])]))]
+  if (remove==TRUE){
+    cellData<-cellData[,row.names(pData(cellData))[!(pData(cellData)[,groups]%in%names)]]
+    
+    for (i in 1:length(cellData@colorData)){
+      cellData@colorData[[i]] <- cellData@colorData[[i]][as.vector(unique(pData(cellData)[,names(cellData@colorData[i])]))]
+    }
   }
   
   cellData
