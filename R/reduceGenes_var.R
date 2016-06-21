@@ -38,6 +38,10 @@
 
 reduceGenes_var <- function(cellData, exprGenes = TRUE, exprThresh = 1, cellThresh = 2, varThresh = TRUE, cv = 0.5, seuratThresh = FALSE, z_cutoff = 1.5, ...) {
     
+  if (.Platform$OS.type == "windows") {
+    quartz <- function() windows()
+  }
+  
   if (cellData@logData$prepCells[1] == "No") {
         warning("It would be wise to run prepCells prior to reduceGenes_var.", call. = FALSE)
     }
