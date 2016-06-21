@@ -18,12 +18,13 @@ Imports: reshape2,
     NMF,
     RColorBrewer,
     fastICA,
-    scales
+    scales,
+    Biobase
 URL: http://github.com/joeburns06/hocuspocus
 BugReports: http://github.com/joeburns06/hocuspocus/issues
 Depends: ggplot2 (>= 0.9.3.1),
     sva,
     gridExtra (>= 2.0.0),
     Seurat (>= 1.2),
-    cluster
+    cluster,
     Biobase
