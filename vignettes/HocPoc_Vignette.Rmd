@@ -1,7 +1,7 @@
 ---
 title: "Bare-bones Vignette for Using HocusPocus"
 author: "Mike Kelly and Joe Burns"
-date: "`r Sys.Date()`"
+date: "2016-06-22"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{Vignette Title}
