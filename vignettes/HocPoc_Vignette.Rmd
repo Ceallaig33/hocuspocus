@@ -1,6 +1,6 @@
 ---
-title: "Vignette Title"
-author: "Vignette Author"
+title: "Bare-bones Vignette for Using HocusPocus"
+author: "Mike Kelly and Joe Burns"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
 vignette: >
@@ -8,51 +8,98 @@ vignette: >
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
+Details will be expanded in the future, but this should give a general idea of the workflow.
 
-Vignettes are long form documentation commonly included in packages. Because they are part of the distribution of the package, they need to be as compact as possible. The `html_vignette` output type provides a custom style sheet (and tweaks some options) to ensure that the resulting html is as small as possible. The `html_vignette` format:
+This uses the P1 inner ear single cell dataset from our Nature Communication paper. Dataset is available from GEO GSE71982 (use tpm matrix as assay file). Phenodata files are currently available upon request and will be posted on GEO shortly and may be packaged with this Vignette or HocusPocus in the future.
 
-- Never uses retina figures
-- Has a smaller default figure size
-- Uses a custom CSS stylesheet instead of the default Twitter Bootstrap style
+This vignette uses the cochlear epithelial cell dataset (non-FACs enriched) as an initial example. Other datasets will be used to illustrate additional features.
 
-## Vignette Info
+First, initialize the hocuspocus package and set to the working directory where you have your input files
 
-Note the various macros within the `vignette` section of the metadata block above. These are required in order to instruct R how to build the vignette. Note that you should change the `title` field and the `\VignetteIndexEntry` to match the title of your vignette.
+```{r}
+library(hocuspocus)
+# setwd("/users/kellymc/Desktop/HocPoc_Vig")
+```
 
-## Styles
+Read your expression matrix and phenodata annotation files in to create a Hocus object (a variation of the Bioconductor ExpressionSet class). The phenodata data file allows you to use the expression matrix that include a large set of sample and limit it down to the ones you want to include in the current analysis. It also allows you to included important information about the samples. Other annotation files can also be included (e.g. featureData, etc.). The phenodata file should exclude any identified outliers with the data (or if no phenodata file is included, the outlier samples should be removed from the expression matrix). After reading in the cells, you should run the prepCells function, which log transforms the data - this is important to stabilize variance between samples and prevent higher and lower expressed genes for inappropriately influencing the analysis. (Note: We are creating a duplicate of the original Hocus object "EpCoch" and calling it "EpCochA" so that any changes we make will not affect the original import "EpCoch").
 
-The `html_vignette` template includes a basic CSS theme. To override this theme you can specify your own CSS in the document metadata as follows:
+```{r}
+EpCoch <- readCells(assay="Coch_TPM.txt",pheno="EpitCoch.txt")
+EpCochA <- prepCells(EpCoch)
+```
 
-    output: 
-      rmarkdown::html_vignette:
-        css: mystyles.css
+You can set colors for any aspects of the samples if they are defined in the phenodata table. In this case, we are setting color designations for the two experimental captures that make up the cochlear epithelial dataset. Doing this allows us to check if there are any correlations between the technical captures and the identification of systematic variation of expression (batch effects). We can then use the pcaMatrix function to visualize this across each of the the principle components of the data. (Note: The column "GroupID" from phenodata, which are the cell designations used in the original paper, is also being utilized for those that what to see where these cells end up throughout the process)
 
-## Figures
+```{r}
+EpCochA <- setColors(EpCochA, groups=c("IsoID","GroupID"), auto=TRUE)
+pcaMatrix(EpCochA,groups="IsoID",colors="IsoID")
+pcaMatrix(EpCochA,groups="GroupID",colors="GroupID")
+#pcaMatrix(EpCochA,groups="Norm_GFP_I",colors="Norm_GFP_I")
+#pcaMatrix(EpCochA,groups="Norm_tdTom_I",colors="Norm_tdTom_I")
+```
 
-The figure sizes have been customised so that you can easily put two images side-by-side. 
+Okay, so we clearly have systematic variation associationed with capture/isolation. Turns out this is because we only used a single animal for each of these captures and one ended up being male and the other female. In addition to normal technical variation, we see evidence of gender-related gene expression that cause the samples to separate by principle component analysis. To address this, we can run prepCells again, but this time setting the batchGroup to adjust for batch effects across the captures. This uses an internal call of comBat, a commonly used package for addressing batch effects. We are creating a new Hocus object EpCochB to distinguish it from the non-Batch-adjusted version so that we can compare them later
+
+```{r}
+EpCochB <- prepCells(EpCoch, batchGroup="IsoID")
+EpCochB <- setColors(EpCochB, groups=c("IsoID","GroupID"), auto=TRUE)
+pcaMatrix(EpCochB,groups="IsoID",colors="IsoID")
+pcaMatrix(EpCochB,groups="GroupID",colors="GroupID")
+```
+
+This looks much better - no clear clustering of the cells from one isolation away from the other. No we can proceed with handling this multidimensional dataset and reducing it down to something that is maneagable (and intrepretable). We start by reducing the genes that are included as part of the analysis by excluding those that either are not expressed at a sufficient level ("exprThreshold"") in at least a set number of cells ("cellThreshold"") and/or do not have enough variation in their expression across the samples to play a role in defining clusters of cells (set by "varThreshold" (boolean) and "cv"" value). This helps excludes genes that really can't be distinguished from noise and limits the gene list down to make subsequent analysis run more efficiently. The second step of reducing the gene list down using principle component analysis to look for the genes that account for the variance in the dataset, assign them weights within principle components, and allow you to select which principle components and how many genes through which you are going to analyze the data. The pcaMatrix principle component plots and the scree that we ran previosly can be helpful in deciding which and how many PCs to include. You will likely run this step more than once in evaluating which PCs and number of genes show you the aspects of your data that you are most interested in. Displaying a heatmap is a nice visual way of showing how your samples separate and which genes are playing a role in clustering. You can also look at the table of shaved genes that you can output as part of the reduceGenes_pca function.
+
+
+```{r}
+EpCochB <- reduceGenes_var(EpCochB)
+EpCochB <- reduceGenes_pca(EpCochB, PCs = c(1,2,3,4), genes=300, saveTable = TRUE)
+heatMap(EpCochB, bars="IsoID")
+```
+
+Defining sample groups within the data is often one of the things that one wants to do with single cell data. This allows you to do things like run differential expression across groups to determine what genes are over-represented within certain cells, for example. While, one could either use hierachical clustering or manually-curation based on marker genes for cells types, k-means clustering has been favored within single cell analysis for looking across many aspects of the data for how cells separate from each other. K-means clustering requires an input of how many k-groups to cluster, which requires a user decision. An alternative is to use "gap-statistics" to look for the number of stable clusters within a given dataset by bootstrapping.
+
+```{r}
+gapStats(EpCochB)
+```
+
+The output number of k-groups determined by gapStats can then be used as the input for number of k-groups to find using clusterCells. This can update the Hocus object so that the a "KM_Groups" column gets added to the phenodata slot in the Hocus object. You can designate colors for this newly defined k-groups and see what they look like in a heatmap or pca plot
+
+```{r}
+EpCochB <- clusterCells(EpCochB, k=4)
+varLabels(phenoData(EpCochB))
+EpCochB <- setColors(EpCochB, groups="KM_Groups", auto=TRUE)
+heatMap(EpCochB, bars=c("IsoID","KM_Groups"))
+pca2D(EpCochB, center = TRUE, scale = FALSE, PCs = c(1, 2), ICA=FALSE, groups="KM_Groups", colors="KM_Groups") 
+```
+
+
+Now that we have meaningful cell groups identified, we can plot candidate genes in violin plots to show how their expression varies across groups. This can also be run on the non-batch adjusted dataset, which will keep values from being displayed as negative values - this will require saving the updated phenodata file and then applying to the non-adjusted expression matrix to create a new Hocus object (will update the documentation to show how to do this)
+
+```{r}
+blotPlot(EpCochB,genes="Myo7a",groups="KM_Groups")
+```
+
+
+For those who are interested: So, what effect did the isolation/capture batch effects really have on the data? We can compare outputs of the batch-adjusted and non-adjusted Hocus objects:
 
 ```{r, fig.show='hold'}
-plot(1:10)
-plot(10:1)
+EpCochA <- reduceGenes_var(EpCochA)
+EpCochA <- reduceGenes_pca(EpCochA, PCs = c(1,2,3,4), genes=300, saveTable = TRUE)
+
+heatMap(EpCochA,bars="IsoID")
+heatMap(EpCochB,bars="IsoID")
+```
+```{r, fig.show='hold'}
+pca2D(EpCochA, center = TRUE, scale = FALSE, PCs = c(1, 2), ICA=FALSE, groups="IsoID", colors="IsoID", logNumeric = TRUE, CR = FALSE, alpha = 0.7, dotsize = 5, 
+    bubble = FALSE, save = FALSE) 
+pca2D(EpCochB, center = TRUE, scale = FALSE, PCs = c(1, 2), ICA=FALSE, groups="IsoID", colors="IsoID", logNumeric = TRUE, CR = FALSE, alpha = 0.7, dotsize = 5, 
+    bubble = FALSE, save = FALSE) 
+```
+```{r, fig.show='hold'}
+pca2D(EpCochA, center = TRUE, scale = FALSE, PCs = c(1, 2), ICA=FALSE, groups="GroupID", colors="GroupID", logNumeric = TRUE, CR = FALSE, alpha = 0.7, dotsize = 5, 
+    bubble = FALSE, save = FALSE) 
+pca2D(EpCochB, center = TRUE, scale = FALSE, PCs = c(1, 2), ICA=FALSE, groups="GroupID", colors="GroupID", logNumeric = TRUE, CR = FALSE, alpha = 0.7, dotsize = 5, 
+    bubble = FALSE, save = FALSE) 
 ```
 
-You can enable figure captions by `fig_caption: yes` in YAML:
-
-    output:
-      rmarkdown::html_vignette:
-        fig_caption: yes
-
-Then you can use the chunk option `fig.cap = "Your figure caption."` in **knitr**.
-
-## More Examples
-
-You can write math expressions, e.g. $Y = X\beta + \epsilon$, footnotes^[A footnote here.], and tables, e.g. using `knitr::kable()`.
-
-```{r, echo=FALSE, results='asis'}
-knitr::kable(head(mtcars, 10))
-```
-
-Also a quote using `>`:
-
-> "He who gives up [code] safety for [code] speed deserves neither."
-([via](https://twitter.com/hadleywickham/status/504368538874703872))
+Still a work in progress...
