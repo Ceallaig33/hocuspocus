@@ -13,12 +13,14 @@ ordering and differential expression analysis tools from monocle.
 To install hocuspocus and run it for the first time, open a new R or RStudio
 session and type the following commands:
 
+
+To install this forked version (otherwise install from joeburns06/hocuspocus):
 ```
 install.packages("devtools")
 source("https://bioconductor.org/biocLite.R")
 biocLite("sva")
 devtools::install_github("satijalab/seurat")
-devtools::install_github("joeburns06/hocuspocus")
+devtools::install_github("Ceallaig33/hocuspocus")
 library(hocuspocus)
 ```
 
@@ -33,7 +35,8 @@ library(hocuspocus)
 ## Getting the latest version of hocuspocus
 To obtain the latest version of hocuspocus, type the following commands:
 
+To update using this forked version (otherwise update from joeburns06/hocuspocus):
 ```
-devtools::install_github("joeburns06/hocuspocus")
+devtools::install_github("Ceallaig33/hocuspocus")
 library(hocuspocus)
 ```
