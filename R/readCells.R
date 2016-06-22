@@ -44,7 +44,7 @@ readCells <- function(assay, pheno, feature, experiment, color) {
         aData <- aData[, row.names(pData)]
         pData_color<-pData
         pData <- new("AnnotatedDataFrame", data = pData)
-        params["phenoData"] <- pData
+        params[["phenoData"]] <- pData
         params$assayData <- aData
     } else {
         pData <- data.frame("GroupID"=1:length(colnames(aData)))
@@ -59,7 +59,7 @@ readCells <- function(assay, pheno, feature, experiment, color) {
         fData <- read.table(feature, header = TRUE, sep = "\t", row.names = 1, check.names = FALSE)
         aData <- aData[row.names(fData), ]
         fData <- new("AnnotatedDataFrame", data = fData)
-        params["featureData"] <- fData
+        params[["featureData"]] <- fData
         params$assayData <- aData
     } else {
         fData <- data.frame(row.names(aData))
